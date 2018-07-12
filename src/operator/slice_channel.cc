@@ -52,6 +52,8 @@ MXNET_REGISTER_OP_PROPERTY(SliceChannel, SliceChannelProp)
 
 **Note** that `num_outputs` should evenly divide the length of the axis
 along which to split the array.
+If `num_outputs < 1`, it will automatically set `num_outputs` to match the size of the desired
+axis, resulting in evenly splitted arrays with size `1` of the particular axis.
 
 Example::
 

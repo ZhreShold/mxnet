@@ -159,17 +159,17 @@ def test_rnntanh_bidirectional():
 
     fused = mx.rnn.FusedRNNCell(H, num_layers=2, mode='rnn_tanh',
                                 bidirectional=True, get_next_state=True, prefix='')
-    
+
     stack = mx.rnn.SequentialRNNCell()
     stack.add(mx.rnn.BidirectionalCell(
                 mx.rnn.RNNCell(H, activation='tanh', prefix='l0_'),
                 mx.rnn.RNNCell(H, activation='tanh', prefix='r0_'),
-                output_prefix='bi_rnntanh_0_'))    
+                output_prefix='bi_rnntanh_0_'))
     stack.add(mx.rnn.BidirectionalCell(
                 mx.rnn.RNNCell(H, activation='tanh', prefix='l1_'),
                 mx.rnn.RNNCell(H, activation='tanh', prefix='r1_'),
                 output_prefix='bi_rnntanh_1_'))
-    
+
     check_rnn_consistency(fused, stack, T, N, I, H, 'write')
     check_rnn_consistency(fused, stack, T, N, I, H, 'add')
     check_rnn_consistency(fused, stack, T, N, I, H, 'null')
@@ -196,12 +196,12 @@ def test_rnnrelu_bidirectional():
 
     fused = mx.rnn.FusedRNNCell(H, num_layers=2, mode='rnn_relu',
                                 bidirectional=True, get_next_state=True, prefix='')
-    
+
     stack = mx.rnn.SequentialRNNCell()
     stack.add(mx.rnn.BidirectionalCell(
                 mx.rnn.RNNCell(H, activation='relu', prefix='l0_'),
                 mx.rnn.RNNCell(H, activation='relu', prefix='r0_'),
-                output_prefix='bi_rnnrelu_0_'))    
+                output_prefix='bi_rnnrelu_0_'))
     stack.add(mx.rnn.BidirectionalCell(
                 mx.rnn.RNNCell(H, activation='relu', prefix='l1_'),
                 mx.rnn.RNNCell(H, activation='relu', prefix='r1_'),
@@ -409,13 +409,14 @@ def test_concat():
 
 @with_seed()
 def test_slice_channel():
-    def check_slice_channel(data_ndim, axis, num_outputs, squeeze_axis):
+    def check_slice_channel(data_ndim, axis, num_outputs, squeeze_axis, auto_slice=False):
         ins = []
         if squeeze_axis:
             shape = np.random.randint(2, 5, data_ndim).tolist()
             shape[axis] = num_outputs
             out_ele_shape = [ele for ele in shape]
             del out_ele_shape[axis]
+            num_outputs = -1 if auto_slice else num_outputs
         else:
             shape = np.random.randint(1, 5, data_ndim).tolist()
             shape[axis] *= num_outputs
@@ -449,6 +450,7 @@ def test_slice_channel():
     check_slice_channel(data_ndim=4, axis=2, num_outputs=3, squeeze_axis=False)
     check_slice_channel(data_ndim=3, axis=-1, num_outputs=2, squeeze_axis=False)
     check_slice_channel(data_ndim=5, axis=-2, num_outputs=3, squeeze_axis=True)
+    check_slice_channel(data_ndim=5, axis=-2, num_outputs=3, squeeze_axis=True, auto_slice=True)
 
 @with_seed()
 def test_regression():
