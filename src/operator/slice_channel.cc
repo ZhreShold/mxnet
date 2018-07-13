@@ -29,8 +29,16 @@
 namespace mxnet {
 namespace op {
 template<>
-Operator* CreateOp<cpu>(SliceChannelParam param, int dtype) {
+Operator* CreateOp<cpu>(SliceChannelParam param, int dtype, TShape dshape) {
   Operator* op = nullptr;
+  // update num_output if < 1
+  int real_axis = param_.axis;
+  if (real_axis < 0) {
+    real_axis += dshape.ndim();
+  }
+  if (param.num_outputs < 1) {
+    param.num_outputs = static_cast<int>(dshape[real_axis]);
+  }
   MSHADOW_TYPE_SWITCH(dtype, DType, {
     op = new SliceChannelOp<cpu, DType>(param);
   })
@@ -40,7 +48,7 @@ Operator* CreateOp<cpu>(SliceChannelParam param, int dtype) {
 Operator* SliceChannelProp::CreateOperatorEx(Context ctx,
                                              std::vector<TShape>* in_shape,
                                              std::vector<int>* in_type) const {
-  DO_BIND_DISPATCH(CreateOp, param_, (*in_type)[0]);
+  DO_BIND_DISPATCH(CreateOp, param_, (*in_type)[0], (*in_shape)[0]);
 }
 
 DMLC_REGISTER_PARAMETER(SliceChannelParam);
@@ -52,8 +60,6 @@ MXNET_REGISTER_OP_PROPERTY(SliceChannel, SliceChannelProp)
 
 **Note** that `num_outputs` should evenly divide the length of the axis
 along which to split the array.
-If `num_outputs < 1`, it will automatically set `num_outputs` to match the size of the desired
-axis, resulting in evenly splitted arrays with size `1` of the particular axis.
 
 Example::
 
@@ -87,6 +93,23 @@ Example::
          [ 6.]]]
 
    z[0].shape = (1, 2, 1)
+
+If `num_outputs < 1`, it will automatically set `num_outputs` to match the size of the desired
+axis, resulting in evenly splitted arrays with size `1` of the particular axis.
+
+Example::
+
+    z = split(x, axis=0, num_outputs=-1) // equivallent to 'num_outputs=3'
+    z = [[[ 1.]
+          [ 2.]]]
+
+        [[[ 3.]
+          [ 4.]]]
+
+        [[[ 5.]
+          [ 6.]]]
+
+    z[0].shape = (1, 2, 1)
 
 `squeeze_axis=1` removes the axis with length 1 from the shapes of the output arrays.
 **Note** that setting `squeeze_axis` to ``1`` removes axis with length 1 only

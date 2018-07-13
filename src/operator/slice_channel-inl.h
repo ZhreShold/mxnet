@@ -205,12 +205,6 @@ class SliceChannelProp : public OperatorProperty {
     if (real_axis < 0) {
       real_axis += dshape.ndim();
     }
-
-    // auto estimate number of splits if num_outputs < 1
-    if (param_.num_outputs < 1) {
-      param_.num_outputs = static_cast<int>(dshape[real_axis]);
-    }
-
     CHECK_EQ(dshape[real_axis] % param_.num_outputs, 0U)
       << "You are trying to split the " << real_axis
       << "-th axis of input tensor with shape " << dshape
