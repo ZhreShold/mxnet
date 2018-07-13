@@ -29,16 +29,8 @@
 namespace mxnet {
 namespace op {
 template<>
-Operator* CreateOp<gpu>(SliceChannelParam param, int dtype, TShape dshape) {
+Operator* CreateOp<gpu>(SliceChannelParam param, int dtype) {
   Operator* op = nullptr;
-  // update num_output if < 1
-  int real_axis = param_.axis;
-  if (real_axis < 0) {
-    real_axis += dshape.ndim();
-  }
-  if (param.num_outputs < 1) {
-    param.num_outputs = static_cast<int>(dshape[real_axis]);
-  }
   MSHADOW_TYPE_SWITCH(dtype, DType, {
     op = new SliceChannelOp<gpu, DType>(param);
   })

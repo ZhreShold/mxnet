@@ -29,16 +29,8 @@
 namespace mxnet {
 namespace op {
 template<>
-Operator* CreateOp<cpu>(SliceChannelParam param, int dtype, TShape dshape) {
+Operator* CreateOp<cpu>(SliceChannelParam param, int dtype) {
   Operator* op = nullptr;
-  // update num_output if < 1
-  int real_axis = param_.axis;
-  if (real_axis < 0) {
-    real_axis += dshape.ndim();
-  }
-  if (param.num_outputs < 1) {
-    param.num_outputs = static_cast<int>(dshape[real_axis]);
-  }
   MSHADOW_TYPE_SWITCH(dtype, DType, {
     op = new SliceChannelOp<cpu, DType>(param);
   })
@@ -48,7 +40,15 @@ Operator* CreateOp<cpu>(SliceChannelParam param, int dtype, TShape dshape) {
 Operator* SliceChannelProp::CreateOperatorEx(Context ctx,
                                              std::vector<TShape>* in_shape,
                                              std::vector<int>* in_type) const {
-  DO_BIND_DISPATCH(CreateOp, param_, (*in_type)[0], (*in_shape)[0]);
+  TShape dshape = (*in_shape)[0];
+  int real_axis = param_.axis;
+  if (real_axis < 0) {
+    real_axis += dshape.ndim();
+  }
+  if (param_.num_outputs < 1) {
+    param_.num_outputs = static_cast<int>(dshape[real_axis]);
+  }
+  DO_BIND_DISPATCH(CreateOp, param_, (*in_type)[0]);
 }
 
 DMLC_REGISTER_PARAMETER(SliceChannelParam);
