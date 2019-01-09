@@ -45,6 +45,8 @@ namespace box_nms_enum {
 enum BoxNMSOpInputs {kData};
 enum BoxNMSOpOutputs {kOut, kTemp};
 enum BoxNMSOpResource {kTempSpace};
+enum BoxNMSOpNMSMode {kLinear, kGaussian};
+
 }  // box_nms_enum
 
 struct BoxNMSParam : public dmlc::Parameter<BoxNMSParam> {
@@ -57,6 +59,8 @@ struct BoxNMSParam : public dmlc::Parameter<BoxNMSParam> {
   bool force_suppress;
   int in_format;
   int out_format;
+  dmlc::optional<int> nms_mode;
+  float sigma;
   DMLC_DECLARE_PARAMETER(BoxNMSParam) {
     DMLC_DECLARE_FIELD(overlap_thresh).set_default(0.5)
     .describe("Overlapping(IoU) threshold to suppress object with smaller score.");
@@ -85,6 +89,16 @@ struct BoxNMSParam : public dmlc::Parameter<BoxNMSParam> {
     .describe("The output box encoding type. \n"
         " \"corner\" means boxes are encoded as [xmin, ymin, xmax, ymax],"
         " \"center\" means boxes are encodes as [x, y, width, height].");
+    DMLC_DECLARE_FIELD(nms_mode).set_default(dmlc::optional<int>())
+    .add_enum("linear", box_common_enum::kLinear)
+    .add_enum("gaussian", box_common_enum::kGaussian)
+    .describe("Soft NMS weighting mode. \n"
+        " \"linear\" mode suppress overlapping boxes' scores with weight (1 - iou), \n"
+        " \"gaussian\" mode suppress boxes' scores with weight (exp(-(iou * iou) / sigma)).\n"
+        "If not specified, Hard-NMS algorithm will be used. In constrast to Soft-NMS, "
+        "Hard-NMS suppress overlapping boxes' scores with weight 0.");
+    DMLC_DECLARE_FIELD(sigma).set_default(0.5f)
+    .describe("Sigma for Soft NMS weighting in gaussian mode, default is 0.5.")
   }
 };  // BoxNMSParam
 
