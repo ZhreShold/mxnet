@@ -45,7 +45,7 @@ namespace box_nms_enum {
 enum BoxNMSOpInputs {kData};
 enum BoxNMSOpOutputs {kOut, kTemp};
 enum BoxNMSOpResource {kTempSpace};
-enum BoxNMSOpNMSMode {kLinear, kGaussian};
+enum BoxNMSOpNMSMode {kHard, kLinear, kGaussian};
 
 }  // box_nms_enum
 
@@ -59,7 +59,7 @@ struct BoxNMSParam : public dmlc::Parameter<BoxNMSParam> {
   bool force_suppress;
   int in_format;
   int out_format;
-  dmlc::optional<int> nms_mode;
+  int nms_mode;
   float sigma;
   DMLC_DECLARE_PARAMETER(BoxNMSParam) {
     DMLC_DECLARE_FIELD(overlap_thresh).set_default(0.5)
@@ -89,14 +89,15 @@ struct BoxNMSParam : public dmlc::Parameter<BoxNMSParam> {
     .describe("The output box encoding type. \n"
         " \"corner\" means boxes are encoded as [xmin, ymin, xmax, ymax],"
         " \"center\" means boxes are encodes as [x, y, width, height].");
-    DMLC_DECLARE_FIELD(nms_mode).set_default(dmlc::optional<int>())
-    .add_enum("linear", box_common_enum::kLinear)
-    .add_enum("gaussian", box_common_enum::kGaussian)
+    DMLC_DECLARE_FIELD(nms_mode).set_default(box_nms_enum::kHard)
+    .add_enum("hard", box_nms_enum::kHard)
+    .add_enum("linear", box_nms_enum::kLinear)
+    .add_enum("gaussian", box_nms_enum::kGaussian)
     .describe("Soft NMS weighting mode. \n"
+        " \"hard\" Hard-NMS suppress overlapping boxes' scores to 0s. \n"
         " \"linear\" mode suppress overlapping boxes' scores with weight (1 - iou), \n"
         " \"gaussian\" mode suppress boxes' scores with weight (exp(-(iou * iou) / sigma)).\n"
-        "If not specified, Hard-NMS algorithm will be used. In constrast to Soft-NMS, "
-        "Hard-NMS suppress overlapping boxes' scores with weight 0.");
+        "If not specified, Hard-NMS algorithm will be used.");
     DMLC_DECLARE_FIELD(sigma).set_default(0.5f)
     .describe("Sigma for Soft NMS weighting in gaussian mode, default is 0.5.")
   }
@@ -317,10 +318,10 @@ MSHADOW_XINLINE DType Intersect(const DType *a, const DType *b, int encode) {
 struct nms_impl {
   template<typename DType>
   MSHADOW_XINLINE static void Map(int i, int32_t *index, const int32_t *batch_start,
-                                  const DType *input, const DType *areas,
+                                  DType *input, const DType *areas,
                                   int k, int ref, int num,
-                                  int stride, int offset_box, int offset_id,
-                                  float thresh, bool force, int encode) {
+                                  int stride, int offset_box, int offset_id, int offset_score,
+                                  float thresh, bool force, int encode, int nms_mode) {
     int b = i / k;  // batch
     int pos = i % k + ref + 1;  // position
     ref = static_cast<int>(batch_start[b]) + ref;
@@ -341,8 +342,19 @@ struct nms_impl {
     int ref_area_offset = static_cast<int>(index[ref]);
     int pos_area_offset = static_cast<int>(index[pos]);
     DType iou = intersect / (areas[ref_area_offset] + areas[pos_area_offset] - intersect);
-    if (iou > thresh) {
-      index[pos] = -1;
+    switch (nms_mode) {
+      case box_nms_enum::kHard: {
+        if (iou > thresh) index[pos] = -1;
+        break;
+      }
+      case box_nms_enum::kLinear: {
+        if (iou > thresh) *(input + ref_offset - offset_box + offset_score) *= (1 - iou);
+        break;
+      }
+      case box_nms_enum::kGaussian: {
+        // use gaussian with iou input
+        *(input + ref_offset - offset_box + offset_score) *=
+      }
     }
   }
 };
